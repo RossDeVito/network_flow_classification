@@ -45,7 +45,7 @@ htmlcov/
 .nox/
 .coverage
 .coverage.*
-.cache
+.cacheSpu
 nosetests.xml
 coverage.xml
 *.cover
