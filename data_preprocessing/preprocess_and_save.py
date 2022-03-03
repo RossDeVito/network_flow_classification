@@ -38,6 +38,7 @@ if __name__ == '__main__':
 	print(len(df))
 
 	# Drop rows with missing values
+	df = df.replace([np.inf, -np.inf], np.nan)
 	df = df.dropna()
 	print(len(df))
 
