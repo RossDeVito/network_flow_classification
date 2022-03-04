@@ -12,6 +12,7 @@ from scipy import stats
 from sklearn.metrics import f1_score, precision_score, recall_score
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.metrics import precision_recall_curve
+from sklearn.preprocessing import RobustScaler, MinMaxScaler
 import torch
 import pytorch_lightning as pl
 
@@ -31,8 +32,9 @@ if __name__ == '__main__':
 		'use_protocol': True,
 		'model_type': 'dense_nn',
 		'label_type': 'binary', # 'binary', 'both'
+		'use_scaler': True,
 		'early_stopping_patience': 10,
-		'batch_size': 128,
+		'batch_size': 256,
 		'learning_rate': 1e-2,
 		'reduce_lr_on_plateau': False,
 		'lr_patience': 7,
@@ -45,13 +47,23 @@ if __name__ == '__main__':
 		'output_size': TASK_TO_OUPUT_DIM[train_opts['label_type']],
 		'dropout': 0.3,
 	}
+	scaler_opts = {
+		'type': 'min_max',
+	}
 
 	# Load data
+	if train_opts['use_scaler']:
+		if scaler_opts['type'] == 'min_max':
+			scaler = MinMaxScaler()
+	else:
+		scaler = None
+
 	data_module = FlowDataModule(
 		label_type=train_opts['label_type'],
 		use_protocol=train_opts['use_protocol'],
 		batch_size=train_opts['batch_size'],
-		split=train_opts['split']
+		split=train_opts['split'],
+		feature_scaler=scaler,
 	)
 	data_module.setup()
 
@@ -120,6 +132,7 @@ if __name__ == '__main__':
 
 		save_dict = train_opts
 		save_dict.update(dense_opts)
+		save_dict.update(scaler_opts)
 
 		save_dict['val_class_report'] = val_class_report
 		save_dict['test_class_report'] = test_class_report

@@ -11,6 +11,7 @@ import os
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import RobustScaler, MinMaxScaler
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
@@ -58,11 +59,13 @@ class FlowDataset(Dataset):
 		use_protocol (bool): Whether to use the protocol feature. If True,
 			the protocol feature is one-hot encoded. If False, feature
 			not used.
+		feature_scaler (sklearn): The optional feature scaler to use. 
+			Must be already fit.
 		data_file_path (str): The path to the data file.
 	"""
 
 	def __init__(self, label_type='binary', split='split_1', 
-					fold=None, use_protocol=True,
+					fold=None, use_protocol=True, feature_scaler=None,
 					data_file_path=os.path.join('..', 'data', 
 												'darknet_preprocessed.csv')):
 		"""
@@ -72,6 +75,7 @@ class FlowDataset(Dataset):
 		self.split = split
 		self.use_protocol = use_protocol
 		self.data_file_path = data_file_path
+		self.feature_scaler = feature_scaler
 
 		# Load the data
 		self.df = pd.read_csv(self.data_file_path)
@@ -110,8 +114,15 @@ class FlowDataset(Dataset):
 		"""
 		Return the item at the given index.
 		"""
+		if self.feature_scaler is not None:
+			features = self.feature_scaler.transform(
+				self.features.iloc[idx].values.reshape(1, -1)
+			).flatten()
+		else:
+			features = self.features.iloc[idx].values
+
 		return {
-			'features': torch.tensor(self.features.iloc[idx].values).float(), 
+			'features': torch.tensor(features).float(), 
 			'label': torch.tensor(self.labels.iloc[idx]).long()
 		}
 
@@ -129,9 +140,11 @@ class FlowDataModule(pl.LightningDataModule):
 			the protocol feature is one-hot encoded. If False, feature
 			not used.
 		data_file_path (str): The path to the data file.
+		feature_scaler (sklearn): The optional feature scaler to use.
 	"""
 	def __init__(self, label_type='binary', split='split_1', 
 				use_protocol=True, batch_size=64, num_workers=4,
+				feature_scaler=None,
 				data_file_path=os.path.join('..', 'data', 
 											'darknet_preprocessed.csv')):
 		super().__init__()
@@ -141,6 +154,7 @@ class FlowDataModule(pl.LightningDataModule):
 		self.batch_size = batch_size
 		self.num_workers = num_workers
 		self.data_file_path = data_file_path
+		self.feature_scaler = feature_scaler
 
 	def setup(self, stage=None):
 		self.train_dataset = FlowDataset(
@@ -164,6 +178,14 @@ class FlowDataModule(pl.LightningDataModule):
 			use_protocol=self.use_protocol,
 			data_file_path=self.data_file_path
 		)
+
+		# Setup feature scaling
+		if self.feature_scaler is not None:
+			self.feature_scaler.fit(self.train_dataset.features.values)
+
+			self.train_dataset.feature_scaler = self.feature_scaler
+			self.val_dataset.feature_scaler = self.feature_scaler
+			self.test_dataset.feature_scaler = self.feature_scaler
 
 	def train_dataloader(self):
 		return DataLoader(
@@ -191,11 +213,47 @@ class FlowDataModule(pl.LightningDataModule):
 
 
 if __name__ == '__main__':
+	__spec__ = None
+
 	# Test the dataset
 	ds = FlowDataset(label_type='binary', split='split_1', fold=0)
 
 	# Test the data loader
-	data_module = FlowDataModule(label_type='binary', split='split_1')
+	data_module = FlowDataModule(
+		label_type='binary', 
+		split='split_1',
+		num_workers=0
+	)
 	data_module.setup()
 	train_loader = data_module.train_dataloader()
 	batch = next(iter(train_loader))
+
+	# data_module2 = FlowDataModule(
+	# 	label_type='binary', 
+	# 	split='split_1',
+	# 	feature_scaler=RobustScaler(),
+	# 	num_workers=0
+	# )
+	# data_module2.setup()
+	# train_loader2 = data_module2.train_dataloader()
+	# batch2 = next(iter(train_loader2))
+
+	# data_module3 = FlowDataModule(
+	# 	label_type='binary', 
+	# 	split='split_1',
+	# 	feature_scaler=RobustScaler(unit_variance=True),
+	# 	num_workers=0
+	# )
+	# data_module3.setup()
+	# train_loader3 = data_module3.train_dataloader()
+	# batch3 = next(iter(train_loader3))
+
+	data_module4 = FlowDataModule(
+		label_type='binary', 
+		split='split_1',
+		feature_scaler=MinMaxScaler(),
+		num_workers=0
+	)
+	data_module4.setup()
+	train_loader4 = data_module4.train_dataloader()
+	batch4 = next(iter(train_loader4))
