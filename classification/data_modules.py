@@ -111,8 +111,8 @@ class FlowDataset(Dataset):
 		Return the item at the given index.
 		"""
 		return {
-			'features': self.features.iloc[idx].values, 
-			'label': self.labels.iloc[idx]
+			'features': torch.tensor(self.features.iloc[idx].values).float(), 
+			'label': torch.tensor(self.labels.iloc[idx]).long()
 		}
 
 
@@ -142,7 +142,7 @@ class FlowDataModule(pl.LightningDataModule):
 		self.num_workers = num_workers
 		self.data_file_path = data_file_path
 
-	def setup(self):
+	def setup(self, stage=None):
 		self.train_dataset = FlowDataset(
 			fold=0,
 			label_type=self.label_type,
