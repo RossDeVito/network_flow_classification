@@ -33,17 +33,17 @@ if __name__ == '__main__':
 		'model_type': 'dense_nn',
 		'label_type': 'binary', # 'binary', 'both'
 		'use_scaler': True,
-		'early_stopping_patience': 10,
-		'batch_size': 256,
-		'learning_rate': 1e-2,
+		'early_stopping_patience': 20,
+		'batch_size': 1024,
+		'learning_rate': 1e-3,
 		'reduce_lr_on_plateau': False,
 		'lr_patience': 7,
-		'reduce_lr_factor': 0.5,
+		'reduce_lr_factor': 0.1,
 		'split': 'split_1',
-		'pos_weight': [1.5], # or None
+		'pos_weight': None, # or None
 	}
 	dense_opts = {
-		'layer_sizes': [64, 64, 32],
+		'layer_sizes': [128, 64, 64, 32],
 		'output_size': TASK_TO_OUPUT_DIM[train_opts['label_type']],
 		'dropout': 0.3,
 	}
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 	trainer = pl.Trainer(
 		callbacks=callbacks, 
 		log_every_n_steps=1, 
-		detect_anomaly=True,
+		# detect_anomaly=True,
 		# max_epochs=3, # for debugging
 	)
 	trainer.fit(model, datamodule=data_module)
